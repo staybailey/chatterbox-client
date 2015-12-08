@@ -1,8 +1,4 @@
 // YOUR CODE HERE:
-// [] TODO: Room resets on every submit
-// [] TODO: Implement the bold friend function
-// [] TODO: Allow users to select username for submit
-// [] TODO: Have messages refresh periodically
 // [] TODO: BackBone
 // [] TODO: Styling
 var app = {};
@@ -13,32 +9,32 @@ app.server = 'https://api.parse.com/1/classes/chatterbox';
 
 app.results = []
 
-app.currentRoom = '';
+app.currentRoom = null;
+
+app.rooms = {};
+
+app.friends = {};
 
 app.fetch = function(){
-  var that = this;
   $.ajax({
     url: 'https://api.parse.com/1/classes/chatterbox',
     type: 'GET',
     success: function (data) {
       console.log('fetch success!');
-      that.results = data.results;
-      _.each(that.results, function(item){
-        if (item.roomname === that.currentRoom) {
-          that.addMessage(item);
+      app.results = data.results;
+      app.clearMessages();
+      _.each(app.results, function(item){
+        if(app.currentRoom === null){
+          app.currentRoom = item.roomname;
+        }
+        if (item.roomname === app.currentRoom) {
+          app.addMessage(item);
+        } 
+        if (app.rooms[item.roomname] === undefined) {
+          app.rooms[item.roomname] = true; // Dummy Value
+          app.addRoom(item.roomname);
         }
       });
-      var roomNames = [];
-      // Needs to be fixed to only show 
-      for(var i = 0; i < that.results.length; i++) {
-        roomNames.push(that.results[i].roomname);
-      }
-      $('.roomSelect').empty();
-      var uniqRooms = _.uniq(roomNames);
-      uniqRooms.sort();
-      for(var i = 0;i<uniqRooms.length;i++){
-        that.addRoom(uniqRooms[i]);
-      }
     },
     error: function (data) {
     // See: https://developer.mozilla.org/en-US/docs/Web/API/console.error
@@ -70,7 +66,11 @@ app.clearMessages = function(){
 
 app.addMessage = function(message){
   message = this.sanitizeMessage(message);
-  $('.chats').append('<p id="' + message.username + '">' + message.username + ": " + message.text + '</p>');
+  if (app.friends[message.username] === undefined) {
+    $('.chats').append('<p id="' + message.username + '">' + message.username + ": " + message.text + '</p>')
+  } else {
+    $('.chats').append('<p class="friends" id="' + message.username + '">' + message.username + ": " + message.text + '</p>')
+  }
 };
 
 app.addRoom = function(room) {
@@ -80,7 +80,8 @@ app.addRoom = function(room) {
 };
 
 app.addFriend = function(friend) {
-  $('[id=' + friend + ']').css("font-weight", "Bold");
+  $('[id="' + friend + '"]').attr("class", "friends");
+  app.friends[friend] = friend;
 };
 
 app.sanitizeMessage = function(message) {
@@ -94,18 +95,14 @@ app.sanitizeMessage = function(message) {
     return message;
 };
 
-$('#Bailey').on('click', function(){
-    app.addFriend('Bailey');
-  });
-
-
 $(document).ready(function() {
   $('.submit').on('click', function () {
+    var username = $('.inputName').val();
     var text = $('textarea').val();
     var message = {};
-    message.username = 'Bailey+Justin';
+    message.username = username;
     message.text = text;
-    message.roomname = 'floor 8';
+    message.roomname = app.currentRoom;
     app.send(message);
     setTimeout(function(){
       app.clearMessages();
@@ -126,4 +123,14 @@ $(document).ready(function() {
       }
     });
   });
+
+  $('.chats').on('click', 'p', function(e) {
+    console.log("P was clicked")
+    var username = $(e.target).attr('id');
+    console.log(username);
+    app.addFriend(username);
+  })
+
+  app.fetch();
+  setInterval(app.fetch, 1000);
 });
