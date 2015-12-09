@@ -7,11 +7,7 @@ var Message = Backbone.Model.extend({
   initialize: function(message){
     message = this.sanitizeMessage(message);
     this.set(message); // back bone will automatically set username, roomname, and text.
-  }
-
-  roomname: function(){
-    this.get('roomname');
-  }
+  },
 
   sanitizeMessage: function(message) {
     _.each(message, function (item, key) {
@@ -25,34 +21,39 @@ var Message = Backbone.Model.extend({
   }
 });
 
+
+
 var MessageView = Backbone.View.extend({
   initialize: function() {
-    this.model.on('change:message', this.render, this);
+    this.model.on('change:text', this.render, this); // May make sense to have it update on different cases
   },
   render: function() {
+    console.log("Render Called");
     var html = [
       '<div>',
         '<span class="' + this.model.get('username') + '">',
           this.model.get('username'),
-        '<span>',
+        '</span>',
         '<span>: </span>',
         '<span class="message">',
-          this.model.get('message'),
+          this.model.get('text'),
         '</span>',
         '</br>',
       '</div>'
     ].join('');
+    console.log(html);
     return this.$el.html(html);
   }
 });
 
 var Messages = Backbone.Collection.extend({
-  model: Message
+  model: Message;
 });
+
 
 var MessagesView = Backbone.View.extend({
   initialize: function(){
-    this.collection.on('change:message', this.render, this);
+    this.collection.on('change:text', this.render, this);
   },
 
   render: function(){
@@ -66,26 +67,70 @@ var MessagesView = Backbone.View.extend({
       var messageView = new MessageView({model: message});
       return messageView.render();
     }));
+    return this.$el;
+  }
+});
 
+var Room = Backbone.Model.extend({
+  initialize: function(message){
+    this.set('name', message.roomname);
+    this.set('messages', new Messages(message));
+  }
+});
+
+var RoomView = Backbone.View.extend({
+  initialize: function() {
+    this.model.on('change:messages', this.render, this);
+  },
+  render: function() {
+    var html = [
+      '<div>',
+        '<span class="' + this.model.get('name') + '">',
+          this.model.get('name'),
+        '</span>',
+        '</br>',
+        '<span class="messages">',
+          this.model.get('messages').render();,
+        '</span>',
+        '</br>',
+      '</div>'
+    ].join('');
+    return this.$el.html(html);
+  }
+});
+
+var Rooms = Backbone.Collection.extend({
+  model: Room;
+});
+
+
+var RoomsView = Backbone.View.extend({
+  initialize: function(room){
+    this.collection.on('change:messages', this.render, this);
+  },
+  render: function(){
+    var html = [
+      '<span>',
+        
+      '</span>'
+    ].join('');
+
+    this.$el.html(html);
+    
     return this.$el;
   }
 });
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+var App = Backbone.Model.extend({
+  initialize: function() {
+    this.set('currentRoom', null);
+    this.set('server', 'https://api.parse.com/1/classes/chatterbox');
+    this.set('rooms', new Rooms());
+    this.set('friends', )
+  }
+});
 
 
 var app = {};
@@ -94,11 +139,7 @@ app.init = function(){};
 
 app.server = 'https://api.parse.com/1/classes/chatterbox';
 
-app.results = []
 
-app.currentRoom = null;
-
-app.rooms = {};
 
 app.friends = {};
 
@@ -108,19 +149,14 @@ app.fetch = function(){
     type: 'GET',
     success: function (data) {
       console.log('fetch success!');
-      app.results = data.results;
-
-      app.clearMessages();
-      _.each(app.results, function(item){
+      _.each(data.results, function(item){
+        if (app.rooms[item.roomname] === undefined) {
+          app.rooms[item.roomname] = new Messages();
+          app.addRoom(item.roomname);
+        }
+        app.rooms[item.roomname].add(item);
         if(app.currentRoom === null){
           app.currentRoom = item.roomname;
-        }
-        if (item.roomname === app.currentRoom) {
-          app.addMessage(item);
-        } 
-        if (app.rooms[item.roomname] === undefined) {
-          app.rooms[item.roomname] = true; // Dummy Value
-          app.addRoom(item.roomname);
         }
       });
     },
@@ -130,6 +166,10 @@ app.fetch = function(){
     }
   });
 };
+
+// Append it to the page (uncomment this when you are ready):
+
+
 
 app.send = function (message) {  
   $.ajax({
@@ -151,6 +191,7 @@ app.send = function (message) {
 app.clearMessages = function(){
   $('.chats').empty();
 };
+
 
 app.addMessage = function(message){
   message = this.sanitizeMessage(message);
