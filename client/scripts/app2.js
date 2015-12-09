@@ -1,6 +1,93 @@
 // YOUR CODE HERE:
 // [] TODO: BackBone
 // [] TODO: Styling
+
+var Message = Backbone.Model.extend({
+
+  initialize: function(message){
+    message = this.sanitizeMessage(message);
+    this.set(message); // back bone will automatically set username, roomname, and text.
+  }
+
+  roomname: function(){
+    this.get('roomname');
+  }
+
+  sanitizeMessage: function(message) {
+    _.each(message, function (item, key) {
+      if (typeof item === 'string') {
+        message[key] = item.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+      } else {
+        message[key] = 'Invalid Input';
+      }
+    });
+    return message;
+  }
+});
+
+var MessageView = Backbone.View.extend({
+  initialize: function() {
+    this.model.on('change:message', this.render, this);
+  },
+  render: function() {
+    var html = [
+      '<div>',
+        '<span class="' + this.model.get('username') + '">',
+          this.model.get('username'),
+        '<span>',
+        '<span>: </span>',
+        '<span class="message">',
+          this.model.get('message'),
+        '</span>',
+        '</br>',
+      '</div>'
+    ].join('');
+    return this.$el.html(html);
+  }
+});
+
+var Messages = Backbone.Collection.extend({
+  model: Message
+});
+
+var MessagesView = Backbone.View.extend({
+  initialize: function(){
+    this.collection.on('change:message', this.render, this);
+  },
+
+  render: function(){
+    var html = [
+      '<ul>',
+      '</ul>'
+    ].join('');
+
+    this.$el.html(html);
+    this.$el.find('ul').append(this.collection.map(function(message){
+      var messageView = new MessageView({model: message});
+      return messageView.render();
+    }));
+
+    return this.$el;
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 var app = {};
 
 app.init = function(){};
@@ -22,6 +109,7 @@ app.fetch = function(){
     success: function (data) {
       console.log('fetch success!');
       app.results = data.results;
+
       app.clearMessages();
       _.each(app.results, function(item){
         if(app.currentRoom === null){
